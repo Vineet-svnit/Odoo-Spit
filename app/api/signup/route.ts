@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createUserWithEmailAndPassword, deleteUser, getAuth } from "firebase/auth";
-import { doc, Timestamp, writeBatch } from "firebase/firestore";
+import { doc, getDocs, limit, query, Timestamp, where, writeBatch } from "firebase/firestore";
 
 import {
   contactsCollection,
@@ -23,6 +23,9 @@ interface SignupRequestBody {
   };
 }
 
+const PASSWORD_POLICY_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
 function hasRequiredFields(payload: Partial<SignupRequestBody>): payload is SignupRequestBody {
   return Boolean(
     payload.name &&
@@ -40,6 +43,30 @@ function getNowTimestamps(): { createdAt: Timestamp; updatedAt: Timestamp } {
   return { createdAt: now, updatedAt: now };
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function isPasswordValid(password: string): boolean {
+  return PASSWORD_POLICY_REGEX.test(password);
+}
+
+async function emailExists(email: string): Promise<boolean> {
+  const usersSnapshot = await getDocs(
+    query(usersCollection, where("email", "==", email), limit(1)),
+  );
+
+  if (!usersSnapshot.empty) {
+    return true;
+  }
+
+  const contactsSnapshot = await getDocs(
+    query(contactsCollection, where("email", "==", email), limit(1)),
+  );
+
+  return !contactsSnapshot.empty;
+}
+
 export async function POST(request: Request) {
   const auth = getAuth(app);
   let createdAuthUser: Parameters<typeof deleteUser>[0] | null = null;
@@ -54,9 +81,29 @@ export async function POST(request: Request) {
       );
     }
 
+    const normalizedEmail = normalizeEmail(body.email);
+
+    if (!isPasswordValid(body.password)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Password must be at least 8 characters and include lowercase, uppercase, a digit, and a special character",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (await emailExists(normalizedEmail)) {
+      return NextResponse.json(
+        { success: false, error: "Email already exists" },
+        { status: 409 },
+      );
+    }
+
     const authCredential = await createUserWithEmailAndPassword(
       auth,
-      body.email,
+      normalizedEmail,
       body.password,
     );
 
@@ -73,7 +120,7 @@ export async function POST(request: Request) {
       contactId,
       name: body.name,
       type: "customer",
-      email: body.email,
+      email: normalizedEmail,
       mobile: body.mobile,
       address: body.address,
       createdAt,
@@ -84,7 +131,7 @@ export async function POST(request: Request) {
       userId,
       name: body.name,
       role: "portal",
-      email: body.email,
+      email: normalizedEmail,
       mobile: body.mobile,
       address: body.address,
       contactId,
@@ -109,16 +156,22 @@ export async function POST(request: Request) {
 
     const message =
       error instanceof Error ? error.message : "Failed to complete signup";
-    const isAuthError =
+    const authCode =
       typeof error === "object" &&
       error !== null &&
       "code" in error &&
-      typeof (error as { code?: unknown }).code === "string" &&
-      (error as { code: string }).code.startsWith("auth/");
+      typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : undefined;
+    const isAuthError = typeof authCode === "string" && authCode.startsWith("auth/");
+    const isDuplicateEmailError = authCode === "auth/email-already-in-use";
 
     return NextResponse.json(
-      { success: false, error: message },
-      { status: isAuthError ? 400 : 500 },
+      {
+        success: false,
+        error: isDuplicateEmailError ? "Email already exists" : message,
+      },
+      { status: isDuplicateEmailError ? 409 : isAuthError ? 400 : 500 },
     );
   }
 }
