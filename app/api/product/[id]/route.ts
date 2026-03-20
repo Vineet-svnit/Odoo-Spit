@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { deleteDoc, doc, getDoc } from "firebase/firestore";
 
+import { ensureInternalUser } from "@/lib/apiAuth";
 import { productsCollection } from "@/lib/collections";
 import type { Product } from "@/types/product";
 
@@ -33,8 +34,14 @@ export async function GET(_request: Request, context: ProductRouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: ProductRouteContext) {
+export async function DELETE(request: Request, context: ProductRouteContext) {
   try {
+    const unauthorizedResponse = await ensureInternalUser(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
     const { id } = await context.params;
     const productDocRef = doc(productsCollection, id);
     const productSnapshot = await getDoc(productDocRef);

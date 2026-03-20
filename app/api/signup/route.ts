@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { createUserWithEmailAndPassword, deleteUser, getAuth } from "firebase/auth";
-import { doc, getDocs, limit, query, Timestamp, where, writeBatch } from "firebase/firestore";
-
-import {
-  contactsCollection,
-  createContactDoc,
-  createUserDoc,
-  usersCollection,
-} from "@/lib/collections";
-import { app, db } from "@/lib/firebase";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
+import type { User } from "@/types/user";
+import type { Contact } from "@/types/contact";
 
 interface SignupRequestBody {
   name: string;
-  email: string;
-  password: string;
   mobile: string;
   address: {
     city: string;
@@ -23,56 +15,71 @@ interface SignupRequestBody {
   };
 }
 
-const PASSWORD_POLICY_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-
-function hasRequiredFields(payload: Partial<SignupRequestBody>): payload is SignupRequestBody {
-  return Boolean(
-    payload.name &&
-      payload.email &&
-      payload.password &&
-      payload.mobile &&
-      payload.address?.city &&
-      payload.address?.state &&
-      payload.address?.pincode,
-  );
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
-function getNowTimestamps(): { createdAt: Timestamp; updatedAt: Timestamp } {
-  const now = Timestamp.now();
-  return { createdAt: now, updatedAt: now };
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-function isPasswordValid(password: string): boolean {
-  return PASSWORD_POLICY_REGEX.test(password);
-}
-
-async function emailExists(email: string): Promise<boolean> {
-  const usersSnapshot = await getDocs(
-    query(usersCollection, where("email", "==", email), limit(1)),
-  );
-
-  if (!usersSnapshot.empty) {
-    return true;
+function hasRequiredFields(payload: unknown): payload is SignupRequestBody {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
   }
 
-  const contactsSnapshot = await getDocs(
-    query(contactsCollection, where("email", "==", email), limit(1)),
-  );
+  const data = payload as Partial<SignupRequestBody>;
 
-  return !contactsSnapshot.empty;
+  return Boolean(
+    isNonEmptyString(data.name) &&
+      isNonEmptyString(data.mobile) &&
+      typeof data.address === "object" &&
+      data.address !== null &&
+      isNonEmptyString(data.address.city) &&
+      isNonEmptyString(data.address.state) &&
+      isNonEmptyString(data.address.pincode),
+  );
+}
+
+function getBearerToken(request: Request): string | null {
+  const authorization = request.headers.get("authorization")?.trim();
+
+  if (!authorization) {
+    return null;
+  }
+
+  const [scheme, token] = authorization.split(" ");
+
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return null;
+  }
+
+  return token.trim();
 }
 
 export async function POST(request: Request) {
-  const auth = getAuth(app);
-  let createdAuthUser: Parameters<typeof deleteUser>[0] | null = null;
-
   try {
-    const body = (await request.json()) as Partial<SignupRequestBody>;
+    const token = getBearerToken(request);
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    let decodedToken;
+    let userId: string;
+    let email: string;
+
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token);
+      userId = decodedToken.uid;
+      email = decodedToken.email || "";
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    const body = (await request.json()) as unknown;
 
     if (!hasRequiredFields(body)) {
       return NextResponse.json(
@@ -81,97 +88,54 @@ export async function POST(request: Request) {
       );
     }
 
-    const normalizedEmail = normalizeEmail(body.email);
+    const userDocSnapshot = await adminDb.collection("users").doc(userId).get();
 
-    if (!isPasswordValid(body.password)) {
+    if (userDocSnapshot.exists) {
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Password must be at least 8 characters and include lowercase, uppercase, a digit, and a special character",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (await emailExists(normalizedEmail)) {
-      return NextResponse.json(
-        { success: false, error: "Email already exists" },
+        { success: false, error: "User already exists" },
         { status: 409 },
       );
     }
 
-    const authCredential = await createUserWithEmailAndPassword(
-      auth,
-      normalizedEmail,
-      body.password,
-    );
-
-    createdAuthUser = authCredential.user;
-
-    const userId = authCredential.user.uid;
-    const contactDocRef = doc(contactsCollection);
+    const contactDocRef = adminDb.collection("contacts").doc();
     const contactId = contactDocRef.id;
-    const userDocRef = doc(usersCollection, userId);
+    const userDocRef = adminDb.collection("users").doc(userId);
 
-    const { createdAt, updatedAt } = getNowTimestamps();
+    const serverTimestamp = FieldValue.serverTimestamp();
 
-    const contactDoc = createContactDoc({
+    const contactDoc = {
       contactId,
       name: body.name,
       type: "customer",
-      email: normalizedEmail,
+      email,
       mobile: body.mobile,
       address: body.address,
-      createdAt,
-      updatedAt,
-    });
+      createdAt: serverTimestamp,
+      updatedAt: serverTimestamp,
+    } as unknown as Record<string, unknown>;
 
-    const userDoc = createUserDoc({
+    const userDoc = {
       userId,
       name: body.name,
       role: "portal",
-      email: normalizedEmail,
+      email,
       mobile: body.mobile,
       address: body.address,
       contactId,
-      createdAt,
-      updatedAt,
-    });
+      createdAt: serverTimestamp,
+      updatedAt: serverTimestamp,
+    } as unknown as Record<string, unknown>;
 
-    const batch = writeBatch(db);
+    const batch = adminDb.batch();
     batch.set(contactDocRef, contactDoc);
     batch.set(userDocRef, userDoc);
     await batch.commit();
 
     return NextResponse.json({ success: true, userId }, { status: 201 });
-  } catch (error) {
-    if (createdAuthUser) {
-      try {
-        await deleteUser(createdAuthUser);
-      } catch {
-        // Keep response deterministic; cleanup best-effort only.
-      }
-    }
-
-    const message =
-      error instanceof Error ? error.message : "Failed to complete signup";
-    const authCode =
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      typeof (error as { code?: unknown }).code === "string"
-        ? (error as { code: string }).code
-        : undefined;
-    const isAuthError = typeof authCode === "string" && authCode.startsWith("auth/");
-    const isDuplicateEmailError = authCode === "auth/email-already-in-use";
-
+  } catch {
     return NextResponse.json(
-      {
-        success: false,
-        error: isDuplicateEmailError ? "Email already exists" : message,
-      },
-      { status: isDuplicateEmailError ? 409 : isAuthError ? 400 : 500 },
+      { success: false, error: "User couldn't be created! Pls try again" },
+      { status: 500 },
     );
   }
 }

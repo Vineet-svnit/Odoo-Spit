@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { Timestamp, doc, getDoc, setDoc } from "firebase/firestore";
 
+import { ensureInternalUser } from "@/lib/apiAuth";
 import { createProductDoc, productsCollection } from "@/lib/collections";
 import type { Product } from "@/types/product";
 
@@ -45,6 +46,12 @@ function isProductWritePayload(payload: unknown): payload is ProductWritePayload
 
 export async function PUT(request: Request, context: ProductRouteContext) {
   try {
+    const unauthorizedResponse = await ensureInternalUser(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
     const { id } = await context.params;
     const productDocRef = doc(productsCollection, id);
     const productSnapshot = await getDoc(productDocRef);

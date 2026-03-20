@@ -10,6 +10,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 
+import { ensureInternalUser } from "@/lib/apiAuth";
 import { createProductDoc, productsCollection } from "@/lib/collections";
 import type { Product } from "@/types/product";
 
@@ -119,6 +120,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
+    const unauthorizedResponse = await ensureInternalUser(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
     const body = (await request.json()) as unknown;
 
     if (!isProductWritePayload(body)) {
