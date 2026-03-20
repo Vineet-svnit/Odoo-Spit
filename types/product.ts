@@ -3,9 +3,12 @@ import { Timestamp } from "firebase/firestore";
 export interface Product {
   productId: string;
   productName: string;
-  productCategory: string;
-  productType: string;
-  material: string;
+  productCategoryId: string;
+  productCategoryName: string;
+  productTypeId: string;
+  productTypeName: string;
+  materialId: string;
+  materialName: string;
   colors: string[];
   currentStock: number;
   salesPrice: number;
