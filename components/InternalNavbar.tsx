@@ -9,7 +9,7 @@ export default function InternalNavbar() {
   const navItems = [
     { label: "Products", href: "/products" },
     { label: "Billing & Payments", href: "/orders-invoices-bills" },
-    { label: "Payment Terms & Offers", href: "/payment-terms" },
+    { label: "Payment Terms & Offers", href: "/payment-offers" },
     { label: "Users & Contacts", href: "/people" },
     { label: "Reports", href: "/reports" },
   ];

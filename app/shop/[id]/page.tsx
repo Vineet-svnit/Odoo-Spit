@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import PortalNavbar from "@/components/PortalNavbar";
 import { getCurrentIdToken } from "@/lib/clientAuth";
+import { addToCart } from "@/lib/cart";
 import type { Product } from "@/types/product";
 
 export default function ProductDetailsPage() {
@@ -15,6 +16,7 @@ export default function ProductDetailsPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
+  const [addMessage, setAddMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProduct() {
@@ -57,6 +59,24 @@ export default function ProductDetailsPage() {
 
   const decQty = () => setQuantity((prev) => Math.max(1, prev - 1));
   const incQty = () => setQuantity((prev) => prev + 1);
+
+  const handleAddToCart = () => {
+    if (!product || product.currentStock <= 0) {
+      return;
+    }
+
+    addToCart({
+      productId: product.productId,
+      productName: product.productName,
+      image: product.images[0] ?? null,
+      color: selectedColor || null,
+      unitPrice: product.salesPrice,
+      tax: product.salesTax,
+      quantity,
+    });
+
+    setAddMessage("Added to cart");
+  };
 
   if (isLoading) {
     return (
@@ -174,11 +194,14 @@ export default function ProductDetailsPage() {
               </div>
 
               <button
+                onClick={handleAddToCart}
                 className="mt-8 w-full rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-400"
                 disabled={product.currentStock <= 0}
               >
                 {product.currentStock > 0 ? "Add to Cart" : "Out of Stock"}
               </button>
+
+              {addMessage ? <p className="mt-2 text-sm text-emerald-700">{addMessage}</p> : null}
 
               <div className="mt-8 rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
                 <p className="font-semibold text-zinc-900">Terms and Conditions</p>

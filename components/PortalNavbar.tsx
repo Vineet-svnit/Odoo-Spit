@@ -2,29 +2,39 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function PortalNavbar() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
+  useEffect(() => {
+    // Check Firebase auth state
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+      setIsHydrated(true);
+    });
+
+    return () => unsubscribe();
+  }, []);
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      // Clear local storage
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("userId");
+      // Sign out from Firebase
+      await signOut(auth);
       
-      // Redirect to login
+      // Update state and redirect to login
+      setIsLoggedIn(false);
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
       setIsLoggingOut(false);
     }
   };
-
-  const isLoggedIn = typeof window !== "undefined" && !!localStorage.getItem("authToken");
 
   return (
     <nav className="border-b border-zinc-200 bg-white">
@@ -63,15 +73,34 @@ export default function PortalNavbar() {
             </svg>
           </Link>
 
-          {/* Logout */}
-          {isLoggedIn && (
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {isLoggingOut ? "Logging out..." : "Logout"}
-            </button>
+          {isHydrated && (
+            <>
+              {isLoggedIn ? (
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/signup"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                  >
+                    Sign up
+                  </Link>
+                  <span className="text-zinc-300">|</span>
+                  <Link
+                    href="/login"
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                  >
+                    Login
+                  </Link>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

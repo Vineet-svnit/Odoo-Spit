@@ -91,7 +91,11 @@ export default function SignupPage() {
 
       setForm(INITIAL_STATE);
       setMessage("Account created successfully. Redirecting...");
-      router.push("/");
+      
+      // Redirect to home after short delay
+      setTimeout(() => {
+        router.push("/");
+      }, 500);
     } catch (error) {
       setIsError(true);
 

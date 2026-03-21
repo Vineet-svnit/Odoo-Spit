@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PortalNavbar from "@/components/PortalNavbar";
 import { getCurrentIdToken } from "@/lib/clientAuth";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import type { User } from "@/types/user";
 
 export default function MyAccountPage() {
   const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useRequireAuth();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function MyAccountPage() {
     loadUserProfile();
   }, [router]);
 
-  if (isLoading) {
+  if (isAuthLoading || isLoading) {
     return (
       <>
         <PortalNavbar />

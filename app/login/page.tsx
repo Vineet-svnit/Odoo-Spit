@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { getIdToken, signInWithEmailAndPassword } from "firebase/auth";
@@ -17,6 +18,7 @@ const INITIAL_STATE: LoginFormState = {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [form, setForm] = useState<LoginFormState>(INITIAL_STATE);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -34,11 +36,14 @@ export default function LoginPage() {
         form.email,
         form.password,
       );
-      const token = await getIdToken(userCredential.user);
-      console.log("Firebase ID token:", token);
-
+      
       setForm(INITIAL_STATE);
-      setMessage("Login successful.");
+      setMessage("Login successful. Redirecting...");
+      
+      // Redirect to home after short delay
+      setTimeout(() => {
+        router.push("/");
+      }, 500);
     } catch (error) {
       setIsError(true);
 

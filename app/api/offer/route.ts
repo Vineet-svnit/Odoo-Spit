@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ensureInternalUser } from "@/lib/apiAuth";
+import { ensureInternalUser, ensureUserWithRoles } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type {
@@ -88,13 +88,16 @@ function parseAndValidatePayload(payload: unknown): CreateOfferRequestBody | nul
 
 export async function GET(request: Request) {
   try {
-    const unauthorizedResponse = await ensureInternalUser(request);
+    const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
 
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
+    if ("response" in authResult) {
+      return authResult.response;
     }
 
-    const offersSnapshot = await adminDb.collection("offers").get();
+    const offersSnapshot =
+      authResult.role === "portal"
+        ? await adminDb.collection("offers").where("availableOn", "==", "website").get()
+        : await adminDb.collection("offers").get();
     const offers = offersSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Offer);
 
     return NextResponse.json({ success: true, data: offers }, { status: 200 });

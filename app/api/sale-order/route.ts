@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ensureInternalUser } from "@/lib/apiAuth";
+import { ensureInternalUser, ensureUserWithRoles, getAuthenticatedUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
@@ -165,10 +165,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const unauthorizedResponse = await ensureInternalUser(request);
+    const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
 
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
+    if ("response" in authResult) {
+      return authResult.response;
     }
 
     const body = (await request.json()) as unknown;
@@ -176,6 +176,20 @@ export async function POST(request: Request) {
 
     if (!payload) {
       return NextResponse.json({ success: false, error: "Invalid sale order" }, { status: 400 });
+    }
+
+    if (authResult.role === "portal") {
+      const currentUserResult = await getAuthenticatedUser(request);
+
+      if ("response" in currentUserResult) {
+        return currentUserResult.response;
+      }
+
+      const currentContactId = currentUserResult.data.user.contactId;
+
+      if (payload.customerId !== currentContactId) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      }
     }
 
     const paymentTermId = payload.paymentTermId ?? (await ensureDefaultPaymentTermId());

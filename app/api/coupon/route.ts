@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ensureInternalUser } from "@/lib/apiAuth";
+import { ensureInternalUser, ensureUserWithRoles, getAuthenticatedUser, isPortalUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type {
@@ -129,10 +129,28 @@ async function resolveContactIds(payload: CreateCouponRequestBody): Promise<stri
 
 export async function GET(request: Request) {
   try {
-    const unauthorizedResponse = await ensureInternalUser(request);
+    const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
 
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
+    if ("response" in authResult) {
+      return authResult.response;
+    }
+
+    const role = authResult.role;
+    const currentTimeMillis = Date.now();
+    let portalContactId: string | null = null;
+
+    if (role === "portal") {
+      const currentUserResult = await getAuthenticatedUser(request);
+
+      if ("response" in currentUserResult) {
+        return currentUserResult.response;
+      }
+
+      if (!isPortalUser(currentUserResult.data.user)) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      }
+
+      portalContactId = currentUserResult.data.user.contactId;
     }
 
     const url = new URL(request.url);
@@ -149,13 +167,34 @@ export async function GET(request: Request) {
 
       const coupons = snapshots
         .filter((snapshot) => snapshot.exists)
-        .map((snapshot) => snapshot.data() as Coupon);
+        .map((snapshot) => snapshot.data() as Coupon)
+        .filter((coupon) => {
+          if (role !== "portal") {
+            return true;
+          }
+
+          const expirationMillis = coupon.expirationDate?.toMillis?.() ?? 0;
+          const isOwned = coupon.contactId === null || coupon.contactId === portalContactId;
+
+          return coupon.status === "unused" && expirationMillis > currentTimeMillis && isOwned;
+        });
 
       return NextResponse.json({ success: true, data: coupons }, { status: 200 });
     }
 
     const couponsSnapshot = await adminDb.collection("coupons").get();
-    const coupons = couponsSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Coupon);
+    const coupons = couponsSnapshot.docs
+      .map((docSnapshot) => docSnapshot.data() as Coupon)
+      .filter((coupon) => {
+        if (role !== "portal") {
+          return true;
+        }
+
+        const expirationMillis = coupon.expirationDate?.toMillis?.() ?? 0;
+        const isOwned = coupon.contactId === null || coupon.contactId === portalContactId;
+
+        return coupon.status === "unused" && expirationMillis > currentTimeMillis && isOwned;
+      });
 
     return NextResponse.json({ success: true, data: coupons }, { status: 200 });
   } catch (error) {
