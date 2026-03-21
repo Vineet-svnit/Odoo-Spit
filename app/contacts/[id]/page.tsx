@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import InternalNavbar from "@/components/InternalNavbar";
 import { getCurrentIdToken } from "@/lib/clientAuth";
 import type { Contact } from "@/types/contact";
 
@@ -63,7 +64,9 @@ export default function ContactDetailPage() {
   }, [contactId]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_20%_20%,#ffd8b6_0%,transparent_33%),radial-gradient(circle_at_86%_12%,#c7efdf_0%,transparent_36%),linear-gradient(145deg,#f9f4ec,#edf7f2)] px-6 py-10">
+    <>
+      <InternalNavbar />
+      <main className="min-h-screen bg-[radial-gradient(circle_at_20%_20%,#ffd8b6_0%,transparent_33%),radial-gradient(circle_at_86%_12%,#c7efdf_0%,transparent_36%),linear-gradient(145deg,#f9f4ec,#edf7f2)] px-6 py-10">
       <section className="mx-auto w-full max-w-4xl rounded-3xl border border-black/10 bg-white/90 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.38)] backdrop-blur md:p-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -113,5 +116,6 @@ export default function ContactDetailPage() {
         ) : null}
       </section>
     </main>
+    </>
   );
 }

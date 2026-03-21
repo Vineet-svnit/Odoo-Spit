@@ -31,9 +31,12 @@ interface CreatePurchaseOrderResponse {
   success?: boolean;
   data?: {
     purchaseOrderId: string;
+    vendorBillId: string;
   };
   error?: string;
 }
+
+type PurchaseOrderState = "draft" | "confirmed";
 
 interface DraftLine {
   id: string;
@@ -107,6 +110,7 @@ export default function NewPurchaseOrderPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
+  const [purchaseOrderState, setPurchaseOrderState] = useState<PurchaseOrderState>("draft");
 
   useEffect(() => {
     async function loadInitialData() {
@@ -227,6 +231,30 @@ export default function NewPurchaseOrderPage() {
     });
   }
 
+  function handleConfirm() {
+    setIsError(false);
+    setMessage(null);
+
+    if (!selectedVendorId) {
+      setIsError(true);
+      setMessage("Please select a vendor before confirming");
+      return;
+    }
+
+    const validLines = computedLines.filter(
+      (line): line is PurchaseOrderLineItem & { untaxedAmount: number } => line !== null,
+    );
+
+    if (validLines.length !== lines.length || validLines.length === 0) {
+      setIsError(true);
+      setMessage("Please add valid product rows with positive quantity before confirming");
+      return;
+    }
+
+    setPurchaseOrderState("confirmed");
+    setMessage("Purchase order confirmed. You can now create the bill.");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -273,7 +301,7 @@ export default function NewPurchaseOrderPage() {
 
       if (!response.ok || !result.success || !result.data?.purchaseOrderId) {
         setIsError(true);
-        setMessage(result.error ?? "Failed to create purchase order");
+        setMessage(result.error ?? "Failed to create bill");
         return;
       }
 
@@ -302,6 +330,31 @@ export default function NewPurchaseOrderPage() {
           >
             Back to Purchase Orders
           </Link>
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-[0.12em] text-zinc-600">State</span>
+            <span
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${
+                purchaseOrderState === "draft"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {purchaseOrderState}
+            </span>
+          </div>
+
+          {purchaseOrderState === "draft" ? (
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="inline-flex h-10 items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            >
+              Confirm
+            </button>
+          ) : null}
         </div>
 
         {isLoading ? (
@@ -454,15 +507,17 @@ export default function NewPurchaseOrderPage() {
               </p>
             ) : null}
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="h-11 rounded-xl bg-zinc-900 px-5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmitting ? "Creating..." : "Create Purchase Order"}
-              </button>
-            </div>
+            {purchaseOrderState === "confirmed" ? (
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-11 rounded-xl bg-zinc-900 px-5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSubmitting ? "Creating..." : "Create Bill"}
+                </button>
+              </div>
+            ) : null}
           </form>
         )}
       </section>

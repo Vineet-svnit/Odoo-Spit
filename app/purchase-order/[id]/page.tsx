@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getCurrentIdToken } from "@/lib/clientAuth";
 import type { Product } from "@/types/product";
 import type { PurchaseOrder } from "@/types/purchaseOrder";
+import type { VendorBill } from "@/types/vendorBill";
 
 interface PurchaseOrderResponse {
   success?: boolean;
@@ -29,6 +30,12 @@ interface ContactRow {
 interface ContactsResponse {
   success?: boolean;
   data?: ContactRow[];
+  error?: string;
+}
+
+interface VendorBillsResponse {
+  success?: boolean;
+  data?: VendorBill[];
   error?: string;
 }
 
@@ -70,8 +77,15 @@ export default function PurchaseOrderDetailPage() {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [productNameById, setProductNameById] = useState<Record<string, string>>({});
   const [vendorNameById, setVendorNameById] = useState<Record<string, string>>({});
+  const [linkedVendorBill, setLinkedVendorBill] = useState<VendorBill | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDownload = () => {
+    if (!purchaseOrder) return;
+    document.title = `${purchaseOrder.poNumber || "purchase-order"}`;
+    window.print();
+  };
 
   useEffect(() => {
     if (!purchaseOrderId) {
@@ -154,6 +168,42 @@ export default function PurchaseOrderDetailPage() {
     void loadPurchaseOrder();
   }, [purchaseOrderId]);
 
+  useEffect(() => {
+    if (!purchaseOrderId) {
+      setLinkedVendorBill(null);
+      return;
+    }
+
+    async function loadLinkedVendorBill() {
+      try {
+        const token = await getCurrentIdToken();
+        const response = await fetch("/api/vendor-bill", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const payload = (await response.json()) as VendorBillsResponse;
+
+        if (!response.ok || !payload.success) {
+          setLinkedVendorBill(null);
+          return;
+        }
+
+        const vendorBills = Array.isArray(payload.data) ? payload.data : [];
+        const linkedVendorBill = vendorBills.find(
+          (vendorBill) => vendorBill.purchaseOrder === purchaseOrderId,
+        );
+
+        setLinkedVendorBill(linkedVendorBill ?? null);
+      } catch {
+        setLinkedVendorBill(null);
+      }
+    }
+
+    void loadLinkedVendorBill();
+  }, [purchaseOrderId]);
+
   const vendorName = useMemo(() => {
     if (!purchaseOrder) {
       return "-";
@@ -170,12 +220,28 @@ export default function PurchaseOrderDetailPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Purchase</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900">Purchase Order Detail</h1>
           </div>
-          <Link
-            href="/purchase-order"
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
-          >
-            Back to Purchase Orders
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownload}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
+            >
+              Download
+            </button>
+            {linkedVendorBill ? (
+              <Link
+                href={`/vendor-bill/${linkedVendorBill.vendorBillId}`}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-700"
+              >
+                Vendor Bill               
+              </Link>
+            ) : null}
+            <Link
+              href="/purchase-order"
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
+            >
+              Back to Purchase Orders
+            </Link>
+          </div>
         </div>
 
         {isLoading ? <p className="text-sm text-zinc-600">Loading purchase order...</p> : null}
@@ -200,8 +266,8 @@ export default function PurchaseOrderDetailPage() {
                 <p className="mt-1 text-sm font-medium text-zinc-900">{vendorName}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">Vendor ID</p>
-                <p className="mt-1 text-sm font-medium text-zinc-900">{purchaseOrder.vendorId}</p>
+                <p className="text-xs uppercase tracking-[0.12em] text-zinc-500">Vendor Bill</p>
+                <p className="mt-1 text-sm font-medium text-zinc-900">{linkedVendorBill?.billNumber ?? "-"}</p>
               </div>
             </div>
 

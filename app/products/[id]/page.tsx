@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import InternalNavbar from "@/components/InternalNavbar";
 import type { Product } from "@/types/product";
 
 interface ProductResponse {
@@ -54,7 +55,9 @@ export default function ProductDetailPage() {
   }, [productId]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_20%_15%,#ffd8b2_0%,transparent_34%),radial-gradient(circle_at_85%_8%,#bdebd9_0%,transparent_36%),linear-gradient(150deg,#f9f4ec,#eef6f2)] px-6 py-10">
+    <>
+      <InternalNavbar />
+      <main className="min-h-screen bg-[radial-gradient(circle_at_20%_15%,#ffd8b2_0%,transparent_34%),radial-gradient(circle_at_85%_8%,#bdebd9_0%,transparent_36%),linear-gradient(150deg,#f9f4ec,#eef6f2)] px-6 py-10">
       <section className="mx-auto w-full max-w-4xl rounded-3xl border border-black/10 bg-white/90 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.38)] backdrop-blur md:p-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -145,5 +148,6 @@ export default function ProductDetailPage() {
         ) : null}
       </section>
     </main>
+    </>
   );
 }

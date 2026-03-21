@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { getCurrentIdToken } from "@/lib/clientAuth";
 import type { Contact } from "@/types/contact";
 import type { User } from "@/types/user";
+import InternalNavbar from "@/components/InternalNavbar";
+import { getCurrentIdToken } from "@/lib/clientAuth";
 
 interface UsersResponse {
   success?: boolean;
@@ -42,7 +43,7 @@ export default function PeoplePage() {
           fetch("/api/contacts", {
             headers: {
               Authorization: `Bearer ${token}`,
-            },
+            }
           }),
         ]);
 
@@ -92,7 +93,9 @@ export default function PeoplePage() {
   );
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_14%_18%,#ffd9af_0%,transparent_35%),radial-gradient(circle_at_85%_12%,#b7efdb_0%,transparent_36%),linear-gradient(145deg,#f8f4ed,#edf8f2)] px-6 py-10">
+    <>
+      <InternalNavbar />
+      <main className="min-h-screen bg-[radial-gradient(circle_at_14%_18%,#ffd9af_0%,transparent_35%),radial-gradient(circle_at_85%_12%,#b7efdb_0%,transparent_36%),linear-gradient(145deg,#f8f4ed,#edf8f2)] px-6 py-10">
       <section className="mx-auto w-full max-w-5xl rounded-3xl border border-black/10 bg-white/90 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.38)] backdrop-blur md:p-8">
         <div className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">
@@ -141,5 +144,6 @@ export default function PeoplePage() {
         ) : null}
       </section>
     </main>
+    </>
   );
 }

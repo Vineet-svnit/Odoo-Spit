@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
+import InternalNavbar from "@/components/InternalNavbar";
 import type { Product } from "@/types/product";
 
 interface ProductListResponse {
@@ -81,7 +82,9 @@ export default function ProductsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_15%_15%,#ffd6a8_0%,transparent_32%),radial-gradient(circle_at_85%_10%,#b6f0d8_0%,transparent_36%),linear-gradient(145deg,#f8f3ec,#edf7f1)] px-6 py-10">
+    <>
+      <InternalNavbar />
+      <main className="min-h-screen bg-[radial-gradient(circle_at_15%_15%,#ffd6a8_0%,transparent_32%),radial-gradient(circle_at_85%_10%,#b6f0d8_0%,transparent_36%),linear-gradient(145deg,#f8f3ec,#edf7f1)] px-6 py-10">
       <section className="mx-auto w-full max-w-7xl rounded-3xl border border-black/10 bg-white/90 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.38)] backdrop-blur md:p-8">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -183,5 +186,6 @@ export default function ProductsPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }

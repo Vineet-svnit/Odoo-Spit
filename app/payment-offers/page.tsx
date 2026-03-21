@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getCurrentIdToken } from "@/lib/clientAuth";
 import type { Offer } from "@/types/offer";
 import type { PaymentTerm } from "@/types/paymentTerm";
+import InternalNavbar from "@/components/InternalNavbar";
 
 interface OffersResponse {
   success?: boolean;
@@ -109,6 +110,8 @@ export default function PaymentOffersPage() {
   }, [offers]);
 
   return (
+    <>
+    <InternalNavbar/>
     <main className="min-h-screen bg-[radial-gradient(circle_at_18%_16%,#ffd9b1_0%,transparent_34%),radial-gradient(circle_at_86%_12%,#bfeedd_0%,transparent_35%),linear-gradient(145deg,#f8f4ed,#edf8f2)] px-6 py-10">
       <section className="mx-auto w-full max-w-5xl rounded-3xl border border-black/10 bg-white/90 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.38)] backdrop-blur md:p-8">
         <div className="mb-6">
@@ -142,5 +145,6 @@ export default function PaymentOffersPage() {
         ) : null}
       </section>
     </main>
+    </>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import InternalNavbar from "@/components/InternalNavbar";
 import { getCurrentIdToken } from "@/lib/clientAuth";
 import type { User, UserRole } from "@/types/user";
 
@@ -64,7 +65,9 @@ export default function UsersPage() {
   }, [roleFilter, users]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_20%_15%,#ffd7b2_0%,transparent_34%),radial-gradient(circle_at_82%_10%,#c2efde_0%,transparent_35%),linear-gradient(145deg,#f8f4ed,#eef8f3)] px-6 py-10">
+    <>
+      <InternalNavbar />
+      <main className="min-h-screen bg-[radial-gradient(circle_at_20%_15%,#ffd7b2_0%,transparent_34%),radial-gradient(circle_at_82%_10%,#c2efde_0%,transparent_35%),linear-gradient(145deg,#f8f4ed,#eef8f3)] px-6 py-10">
       <section className="mx-auto w-full max-w-6xl rounded-3xl border border-black/10 bg-white/90 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.38)] backdrop-blur md:p-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -123,5 +126,6 @@ export default function UsersPage() {
         ) : null}
       </section>
     </main>
+    </>
   );
 }

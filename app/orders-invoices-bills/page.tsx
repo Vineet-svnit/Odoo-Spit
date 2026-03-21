@@ -4,7 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { getCurrentIdToken } from "@/lib/clientAuth";
+import type { CustomerInvoice } from "@/types/customerInvoice";
+import type { CustomerPayment } from "@/types/customerPayment";
+import type { PaymentBill } from "@/types/paymentBill";
 import type { PurchaseOrder } from "@/types/purchaseOrder";
+import type { SaleOrder } from "@/types/saleOrder";
+import type { VendorBill } from "@/types/vendorBill";
+import InternalNavbar from "@/components/InternalNavbar";
+
 
 type SummaryCard = {
   title: string;
@@ -16,6 +23,36 @@ type SummaryCard = {
 interface PurchaseOrdersResponse {
   success?: boolean;
   data?: PurchaseOrder[];
+  error?: string;
+}
+
+interface SaleOrdersResponse {
+  success?: boolean;
+  data?: SaleOrder[];
+  error?: string;
+}
+
+interface VendorBillsResponse {
+  success?: boolean;
+  data?: VendorBill[];
+  error?: string;
+}
+
+interface PaymentBillsResponse {
+  success?: boolean;
+  data?: PaymentBill[];
+  error?: string;
+}
+
+interface CustomerInvoicesResponse {
+  success?: boolean;
+  data?: CustomerInvoice[];
+  error?: string;
+}
+
+interface CustomerPaymentsResponse {
+  success?: boolean;
+  data?: CustomerPayment[];
   error?: string;
 }
 
@@ -39,23 +76,6 @@ function getTimestampMillis(value: unknown): number | null {
 
   return null;
 }
-
-const salesCards: SummaryCard[] = [
-  {
-    title: "Sales Orders",
-    line1: "Total orders of current month",
-    line2: "Pending orders to invoice",
-  },
-  {
-    title: "Customer Invoices",
-    line1: "Unpaid invoices",
-    line2: "Overdue",
-  },
-  {
-    title: "Customer Payments",
-    line1: "Payment summary",
-  },
-];
 
 const purchaseCards: SummaryCard[] = [
   {
@@ -97,33 +117,164 @@ function DashboardCard({ title, line1, line2, href }: SummaryCard) {
 }
 
 export default function OrdersInvoicesBillsPage() {
+  const [salesOrders, setSalesOrders] = useState<SaleOrder[]>([]);
+  const [customerInvoices, setCustomerInvoices] = useState<CustomerInvoice[]>([]);
+  const [customerPayments, setCustomerPayments] = useState<CustomerPayment[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [vendorBills, setVendorBills] = useState<VendorBill[]>([]);
+  const [vendorPayments, setVendorPayments] = useState<PaymentBill[]>([]);
 
   useEffect(() => {
-    async function loadPurchaseOrders() {
+    async function loadPurchaseData() {
       try {
         const token = await getCurrentIdToken();
-        const response = await fetch("/api/purchaseorder", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
 
-        const payload = (await response.json()) as PurchaseOrdersResponse;
+        const [
+          salesOrdersResponse,
+          customerInvoicesResponse,
+          customerPaymentsResponse,
+          purchaseOrdersResponse,
+          vendorBillsResponse,
+          vendorPaymentsResponse,
+        ] = await Promise.all([
+          fetch("/api/sale-order", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch("/api/customer-invoice", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch("/api/customer-payment", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch("/api/purchaseorder", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch("/api/vendor-bill", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch("/api/payment-bill?partnerType=vendor", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+        ]);
 
-        if (!response.ok || !payload.success) {
-          setPurchaseOrders([]);
-          return;
+        const salesOrdersPayload = (await salesOrdersResponse.json()) as SaleOrdersResponse;
+        const customerInvoicesPayload =
+          (await customerInvoicesResponse.json()) as CustomerInvoicesResponse;
+        const customerPaymentsPayload =
+          (await customerPaymentsResponse.json()) as CustomerPaymentsResponse;
+        const purchaseOrdersPayload =
+          (await purchaseOrdersResponse.json()) as PurchaseOrdersResponse;
+        const vendorBillsPayload = (await vendorBillsResponse.json()) as VendorBillsResponse;
+        const vendorPaymentsPayload = (await vendorPaymentsResponse.json()) as PaymentBillsResponse;
+
+        if (!salesOrdersResponse.ok || !salesOrdersPayload.success) {
+          setSalesOrders([]);
+        } else {
+          setSalesOrders(Array.isArray(salesOrdersPayload.data) ? salesOrdersPayload.data : []);
         }
 
-        setPurchaseOrders(Array.isArray(payload.data) ? payload.data : []);
+        if (!customerInvoicesResponse.ok || !customerInvoicesPayload.success) {
+          setCustomerInvoices([]);
+        } else {
+          setCustomerInvoices(
+            Array.isArray(customerInvoicesPayload.data) ? customerInvoicesPayload.data : [],
+          );
+        }
+
+        if (!customerPaymentsResponse.ok || !customerPaymentsPayload.success) {
+          setCustomerPayments([]);
+        } else {
+          setCustomerPayments(
+            Array.isArray(customerPaymentsPayload.data) ? customerPaymentsPayload.data : [],
+          );
+        }
+
+        if (!purchaseOrdersResponse.ok || !purchaseOrdersPayload.success) {
+          setPurchaseOrders([]);
+        } else {
+          setPurchaseOrders(
+            Array.isArray(purchaseOrdersPayload.data) ? purchaseOrdersPayload.data : [],
+          );
+        }
+
+        if (!vendorBillsResponse.ok || !vendorBillsPayload.success) {
+          setVendorBills([]);
+        } else {
+          setVendorBills(Array.isArray(vendorBillsPayload.data) ? vendorBillsPayload.data : []);
+        }
+
+        if (!vendorPaymentsResponse.ok || !vendorPaymentsPayload.success) {
+          setVendorPayments([]);
+        } else {
+          setVendorPayments(
+            Array.isArray(vendorPaymentsPayload.data) ? vendorPaymentsPayload.data : [],
+          );
+        }
       } catch {
+        setSalesOrders([]);
+        setCustomerInvoices([]);
+        setCustomerPayments([]);
         setPurchaseOrders([]);
+        setVendorBills([]);
+        setVendorPayments([]);
       }
     }
 
-    void loadPurchaseOrders();
+    void loadPurchaseData();
   }, []);
+
+  const salesOrdersCurrentMonth = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    return salesOrders.filter((salesOrder) => {
+      const millis = getTimestampMillis(salesOrder.soDate);
+
+      if (millis === null) {
+        return false;
+      }
+
+      const date = new Date(millis);
+
+      return date.getMonth() === month && date.getFullYear() === year;
+    }).length;
+  }, [salesOrders]);
+
+  const unpaidCustomerInvoices = useMemo(
+    () => customerInvoices.filter((customerInvoice) => customerInvoice.amountDue > 0).length,
+    [customerInvoices],
+  );
+
+  const overdueCustomerInvoices = useMemo(() => {
+    const now = Date.now();
+
+    return customerInvoices.filter((customerInvoice) => {
+      if (customerInvoice.amountDue <= 0) {
+        return false;
+      }
+
+      const dueMillis = getTimestampMillis(customerInvoice.invoiceDue);
+
+      if (dueMillis === null) {
+        return false;
+      }
+
+      return now > dueMillis;
+    }).length;
+  }, [customerInvoices]);
 
   const purchaseOrdersCurrentMonth = useMemo(() => {
     const now = new Date();
@@ -143,25 +294,74 @@ export default function OrdersInvoicesBillsPage() {
     }).length;
   }, [purchaseOrders]);
 
+  const unpaidVendorBills = useMemo(
+    () => vendorBills.filter((vendorBill) => vendorBill.amountDue > 0).length,
+    [vendorBills],
+  );
+
+  const overdueVendorBills = useMemo(() => {
+    const now = Date.now();
+
+    return vendorBills.filter((vendorBill) => {
+      if (vendorBill.amountDue <= 0) {
+        return false;
+      }
+
+      const dueMillis = getTimestampMillis(vendorBill.billDue);
+
+      if (dueMillis === null) {
+        return false;
+      }
+
+      return now > dueMillis;
+    }).length;
+  }, [vendorBills]);
+
   const purchaseCards: SummaryCard[] = [
     {
       title: "Purchase Orders",
       line1: `Total orders of current month: ${purchaseOrdersCurrentMonth}`,
-      line2: "Purchase orders to bill",
+      line2: `Purchase orders to bill: ${unpaidVendorBills}`,
       href: "/purchase-order",
     },
     {
       title: "Vendor Bills",
-      line1: "Unpaid bills",
-      line2: "Overdue",
+      line1: `Unpaid bills: ${unpaidVendorBills}`,
+      line2: `Overdue: ${overdueVendorBills}`,
+      href: "/vendor-bill",
     },
     {
       title: "Vendor Payments",
-      line1: "Payment summary",
+      line1: `Transactions: ${vendorPayments.length}`,
+      line2: "Click to view",
+      href: "/vendor-payment",
+    },
+  ];
+
+  const salesCards: SummaryCard[] = [
+    {
+      title: "Sales Orders",
+      line1: `Total orders of current month: ${salesOrdersCurrentMonth}`,
+      line2: `Sales orders to invoice: ${unpaidCustomerInvoices}`,
+      href: "/sales-order",
+    },
+    {
+      title: "Customer Invoices",
+      line1: `Unpaid invoices: ${unpaidCustomerInvoices}`,
+      line2: `Overdue: ${overdueCustomerInvoices}`,
+      href: "/customer-invoice",
+    },
+    {
+      title: "Customer Payments",
+      line1: `Transactions: ${customerPayments.length}`,
+      line2: "Click to view",
+      href: "/customer-payment",
     },
   ];
 
   return (
+    <>
+    <InternalNavbar/>
     <main className="min-h-screen bg-[radial-gradient(circle_at_12%_16%,#ffe3bf_0%,transparent_34%),radial-gradient(circle_at_88%_14%,#cbefe2_0%,transparent_35%),linear-gradient(145deg,#f8f3e8,#edf8f2)] px-6 py-10">
       <section className="mx-auto w-full max-w-6xl rounded-3xl border border-black/10 bg-white/80 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.4)] backdrop-blur md:p-8">
         <header className="mb-8">
@@ -191,5 +391,6 @@ export default function OrdersInvoicesBillsPage() {
         </section>
       </section>
     </main>
+    </>
   );
 }
