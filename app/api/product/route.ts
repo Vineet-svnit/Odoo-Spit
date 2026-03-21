@@ -12,7 +12,9 @@ import {
 
 import { ensureInternalUser } from "@/lib/apiAuth";
 import { createProductDoc, productsCollection } from "@/lib/collections";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import type { Product } from "@/types/product";
+import type { UserRole } from "@/types/user";
 
 type ProductWritePayload = Omit<Product, "productId" | "createdAt" | "updatedAt">;
 
@@ -66,8 +68,60 @@ function normalizeBooleanFilter(value: string | null): boolean | null {
   return null;
 }
 
+function getBearerToken(request: Request): string | null {
+  const authorization = request.headers.get("authorization")?.trim();
+
+  if (!authorization) {
+    return null;
+  }
+
+  const [scheme, token] = authorization.split(" ");
+
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return null;
+  }
+
+  return token.trim();
+}
+
+async function getRequestUserRole(request: Request): Promise<UserRole | null> {
+  try {
+    const token = getBearerToken(request);
+
+    if (!token) {
+      return null;
+    }
+
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userSnapshot = await adminDb.collection("users").doc(decodedToken.uid).get();
+
+    if (!userSnapshot.exists) {
+      return null;
+    }
+
+    const role = (userSnapshot.data() as { role?: unknown }).role;
+
+    if (role !== "internal" && role !== "portal") {
+      return null;
+    }
+
+    return role;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    const role = await getRequestUserRole(request);
+
+    if (!role) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const filters: QueryConstraint[] = [];
 
@@ -98,7 +152,9 @@ export async function GET(request: NextRequest) {
       filters.push(where("materialId", "==", materialId));
     }
 
-    if (published !== null) {
+    if (role === "portal") {
+      filters.push(where("published", "==", true));
+    } else if (published !== null) {
       filters.push(where("published", "==", published));
     }
 
