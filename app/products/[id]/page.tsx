@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import InternalNavbar from "@/components/InternalNavbar";
+import { getCurrentIdToken } from "@/lib/clientAuth";
 import type { Product } from "@/types/product";
 
 interface ProductResponse {
@@ -33,7 +34,12 @@ export default function ProductDetailPage() {
       setError(null);
 
       try {
-        const response = await fetch(`/api/product/${productId}`);
+        const token = await getCurrentIdToken();
+        const response = await fetch(`/api/product/${productId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         const payload = (await response.json()) as ProductResponse;
 
         if (!response.ok || !payload.success || !payload.data) {

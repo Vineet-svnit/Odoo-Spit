@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 import InternalNavbar from "@/components/InternalNavbar";
+import { getCurrentIdToken } from "@/lib/clientAuth";
 import type { Product } from "@/types/product";
 
 interface ProductListResponse {
@@ -49,7 +50,12 @@ export default function ProductsPage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/product${buildQueryString(activeFilters)}`);
+      const token = await getCurrentIdToken();
+      const response = await fetch(`/api/product${buildQueryString(activeFilters)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const payload = (await response.json()) as ProductListResponse;
 
       if (!response.ok || !payload.success) {

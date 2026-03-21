@@ -1,65 +1,121 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import PortalNavbar from "@/components/PortalNavbar";
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <>
+      <PortalNavbar />
+
+      <main className="min-h-screen bg-gradient-to-b from-emerald-50 to-zinc-50">
+        {/* Hero Section */}
+        <section className="flex items-center justify-center px-6 py-20">
+          <div className="mx-auto max-w-4xl text-center">
+            <h1 className="text-4xl font-bold text-zinc-900 mb-6">Welcome to Odoo Shop</h1>
+            <p className="text-lg text-zinc-600 mb-8">
+              Discover a wide range of quality products at the best prices.
+            </p>
+            <Link
+              href="/shop"
+              className="inline-block rounded-lg bg-emerald-600 px-8 py-3 text-lg font-semibold text-white hover:bg-emerald-700 transition-colors"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Start Shopping
+            </Link>
+          </div>
+        </section>
+
+        {/* Featured Categories */}
+        <section className="px-6 py-20 bg-white">
+          <div className="mx-auto max-w-7xl">
+            <h2 className="text-3xl font-bold text-zinc-900 mb-12 text-center">Featured Categories</h2>
+
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  title: "Electronics",
+                  description: "Latest gadgets and devices",
+                  color: "bg-blue-500",
+                },
+                {
+                  title: "Fashion",
+                  description: "Trending clothing and accessories",
+                  color: "bg-pink-500",
+                },
+                {
+                  title: "Home & Garden",
+                  description: "Everything for your home",
+                  color: "bg-green-500",
+                },
+              ].map((category) => (
+                <Link
+                  key={category.title}
+                  href="/shop"
+                  className="group rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow"
+                >
+                  <div
+                    className={`${category.color} h-48 flex items-center justify-center group-hover:scale-105 transition-transform`}
+                  >
+                    <div className="text-center">
+                      <h3 className="text-2xl font-bold text-white">{category.title}</h3>
+                      <p className="text-white/90 text-sm mt-2">{category.description}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="px-6 py-20">
+          <div className="mx-auto max-w-7xl">
+            <h2 className="text-3xl font-bold text-zinc-900 mb-12 text-center">Why Shop With Us</h2>
+
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  title: "Quality Products",
+                  description: "We offer only the best quality products from trusted vendors.",
+                  icon: "✓",
+                },
+                {
+                  title: "Best Prices",
+                  description: "Competitive pricing with frequent discounts and offers.",
+                  icon: "₹",
+                },
+                {
+                  title: "Fast Delivery",
+                  description: "Quick and reliable delivery to your doorstep.",
+                  icon: "📦",
+                },
+              ].map((feature) => (
+                <div key={feature.title} className="rounded-lg border border-zinc-200 bg-white p-6">
+                  <div className="mb-4 text-4xl">{feature.icon}</div>
+                  <h3 className="text-xl font-semibold text-zinc-900 mb-2">{feature.title}</h3>
+                  <p className="text-zinc-600">{feature.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="px-6 py-20 bg-emerald-600">
+          <div className="mx-auto max-w-4xl text-center">
+            <h2 className="text-3xl font-bold text-white mb-6">Ready to Shop?</h2>
+            <p className="text-lg text-emerald-50 mb-8">
+              Browse our extensive collection of products now.
+            </p>
+            <Link
+              href="/shop"
+              className="inline-block rounded-lg bg-white px-8 py-3 text-lg font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+              Explore Products
+            </Link>
+          </div>
+        </section>
       </main>
-    </div>
+    </>
   );
 }
