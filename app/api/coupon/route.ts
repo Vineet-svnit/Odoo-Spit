@@ -3,17 +3,12 @@ import { NextResponse } from "next/server";
 import { ensureInternalUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-
-type CouponTarget = "anonymous" | "selected";
-
-type CouponStatus = "unused" | "used";
-
-interface CreateCouponRequestBody {
-  for: CouponTarget;
-  contacts?: string[];
-  quantity?: number;
-  validUntil: number;
-}
+import type {
+  Coupon,
+  CouponStatus,
+  CouponTarget,
+  CreateCouponRequestBody,
+} from "@/types/coupon";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const BATCH_LIMIT = 450;
@@ -132,6 +127,44 @@ async function resolveContactIds(payload: CreateCouponRequestBody): Promise<stri
     .filter((contactId) => isNonEmptyString(contactId));
 }
 
+export async function GET(request: Request) {
+  try {
+    const unauthorizedResponse = await ensureInternalUser(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
+    const url = new URL(request.url);
+    const idsParam = url.searchParams.get("ids");
+
+    if (idsParam && idsParam.trim().length > 0) {
+      const couponIds = Array.from(
+        new Set(idsParam.split(",").map((id) => id.trim()).filter(Boolean)),
+      );
+
+      const snapshots = await Promise.all(
+        couponIds.map((couponId) => adminDb.collection("coupons").doc(couponId).get()),
+      );
+
+      const coupons = snapshots
+        .filter((snapshot) => snapshot.exists)
+        .map((snapshot) => snapshot.data() as Coupon);
+
+      return NextResponse.json({ success: true, data: coupons }, { status: 200 });
+    }
+
+    const couponsSnapshot = await adminDb.collection("coupons").get();
+    const coupons = couponsSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Coupon);
+
+    return NextResponse.json({ success: true, data: coupons }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch coupons";
+
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const unauthorizedResponse = await ensureInternalUser(request);
@@ -145,7 +178,7 @@ export async function POST(request: Request) {
 
     if (!payload) {
       return NextResponse.json(
-        { success: false, error: "Invalid payload" },
+        { success: false, error: "Invalid coupon payload" },
         { status: 400 },
       );
     }
@@ -181,9 +214,9 @@ export async function POST(request: Request) {
         discountId: null,
         createdAt: serverTimestamp,
         updatedAt: serverTimestamp,
-      };
+      } as unknown as Coupon;
 
-      batch.set(couponRef, couponDoc as Record<string, unknown>);
+      batch.set(couponRef, couponDoc as unknown as Record<string, unknown>);
       createdCouponIds.push(couponRef.id);
       pendingOperations += 1;
 

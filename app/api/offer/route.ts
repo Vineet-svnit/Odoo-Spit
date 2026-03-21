@@ -3,17 +3,12 @@ import { NextResponse } from "next/server";
 import { ensureInternalUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-
-type OfferAvailability = "sales" | "website";
-
-interface CreateOfferRequestBody {
-  name: string;
-  discountPercentage: number;
-  startDate: number;
-  endDate: number;
-  availableOn: OfferAvailability;
-  couponIds: string[];
-}
+import type {
+  CreateOfferRequestBody,
+  Offer,
+  OfferAvailability,
+  OfferCouponEntry,
+} from "@/types/offer";
 
 const BATCH_LIMIT = 450;
 
@@ -27,6 +22,20 @@ function isValidAvailability(value: unknown): value is OfferAvailability {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => isNonEmptyString(item));
+}
+
+function getTimestampMillis(value: unknown): number | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as { toMillis?: () => number };
+
+  if (typeof candidate.toMillis !== "function") {
+    return null;
+  }
+
+  return candidate.toMillis();
 }
 
 function parseAndValidatePayload(payload: unknown): CreateOfferRequestBody | null {
@@ -77,6 +86,25 @@ function parseAndValidatePayload(payload: unknown): CreateOfferRequestBody | nul
   };
 }
 
+export async function GET(request: Request) {
+  try {
+    const unauthorizedResponse = await ensureInternalUser(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
+    const offersSnapshot = await adminDb.collection("offers").get();
+    const offers = offersSnapshot.docs.map((docSnapshot) => docSnapshot.data() as Offer);
+
+    return NextResponse.json({ success: true, data: offers }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch offers";
+
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const unauthorizedResponse = await ensureInternalUser(request);
@@ -110,6 +138,24 @@ export async function POST(request: Request) {
 
     const offerRef = adminDb.collection("offers").doc();
     const discountId = offerRef.id;
+    const offerStartMillis = payload.startDate;
+    const offerEndMillis = payload.endDate;
+
+    const coupons = couponSnapshots.map((snapshot) => {
+      const couponId = snapshot.id;
+      const rawExpiration = (snapshot.data() as { expirationDate?: unknown }).expirationDate;
+      const couponExpirationMillis = getTimestampMillis(rawExpiration) ?? offerEndMillis;
+      const computedExpirationMillis = Math.min(couponExpirationMillis, offerEndMillis);
+
+      if (computedExpirationMillis < offerStartMillis) {
+        throw new Error("Invalid payload");
+      }
+
+      return {
+        couponId,
+        expirationDate: Timestamp.fromMillis(computedExpirationMillis),
+      } as OfferCouponEntry;
+    });
 
     const offerDoc = {
       discountId,
@@ -118,15 +164,15 @@ export async function POST(request: Request) {
       startDate: Timestamp.fromMillis(payload.startDate),
       endDate: Timestamp.fromMillis(payload.endDate),
       availableOn: payload.availableOn,
-      couponIds: payload.couponIds,
+      coupons,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    };
+    } as unknown as Offer;
 
     let batch = adminDb.batch();
     let pendingOperations = 0;
 
-    batch.set(offerRef, offerDoc as Record<string, unknown>);
+    batch.set(offerRef, offerDoc as unknown as Record<string, unknown>);
     pendingOperations += 1;
 
     for (const couponRef of couponRefs) {
@@ -158,6 +204,13 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof Error && error.message === "Invalid payload") {
+      return NextResponse.json(
+        { success: false, error: "Invalid payload" },
+        { status: 400 },
+      );
+    }
+
     const message = error instanceof Error ? error.message : "Failed to create offer";
 
     return NextResponse.json({ success: false, error: message }, { status: 500 });
