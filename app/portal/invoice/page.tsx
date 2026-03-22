@@ -54,8 +54,8 @@ export default function PortalInvoicePage() {
   return (
     <>
       <PortalNavbar />
-      <main className="min-h-screen bg-zinc-50 px-6 py-10">
-        <section className="mx-auto max-w-6xl rounded-2xl border border-zinc-200 bg-white p-6">
+      <main className="min-h-screen app-shell px-6 py-10">
+        <section className="app-surface mx-auto max-w-6xl rounded-2xl border border-zinc-200 p-6">
           <div className="mb-6 flex items-center justify-between gap-3">
             <div>
               <h1 className="text-3xl font-bold text-zinc-900">Your Invoices</h1>

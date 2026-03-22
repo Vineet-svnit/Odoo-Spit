@@ -82,7 +82,7 @@ export default function ProductDetailsPage() {
     return (
       <>
         <PortalNavbar />
-        <main className="min-h-screen bg-zinc-50 px-6 py-10">
+        <main className="min-h-screen app-shell px-6 py-10">
           <div className="mx-auto max-w-7xl">
             <p className="text-center text-zinc-600">Loading product details...</p>
           </div>
@@ -95,7 +95,7 @@ export default function ProductDetailsPage() {
     return (
       <>
         <PortalNavbar />
-        <main className="min-h-screen bg-zinc-50 px-6 py-10">
+        <main className="min-h-screen app-shell px-6 py-10">
           <div className="mx-auto max-w-7xl">
             <p className="text-center text-red-600">{error || "Product not found"}</p>
           </div>
@@ -108,7 +108,7 @@ export default function ProductDetailsPage() {
     <>
       <PortalNavbar />
 
-      <main className="min-h-screen bg-zinc-50 px-6 py-8">
+      <main className="min-h-screen app-shell px-6 py-8">
         <section className="mx-auto max-w-7xl">
           <nav className="mb-6 text-sm text-zinc-600" aria-label="Breadcrumb">
             <ol className="flex flex-wrap items-center gap-2">
@@ -124,7 +124,7 @@ export default function ProductDetailsPage() {
             </ol>
           </nav>
 
-          <div className="grid gap-8 rounded-xl border border-zinc-200 bg-white p-6 md:grid-cols-2 md:p-8">
+          <div className="app-surface grid gap-8 rounded-xl border border-zinc-200 p-6 md:grid-cols-2 md:p-8">
             <div>
               <div className="aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100">
                 {images[selectedImage] === "__placeholder__" ? (

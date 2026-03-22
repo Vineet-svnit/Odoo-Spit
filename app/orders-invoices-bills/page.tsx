@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 
 import { getCurrentIdToken } from "@/lib/clientAuth";
@@ -104,24 +106,28 @@ const purchaseCards: SummaryCard[] = [
 
 function DashboardCard({ title, line1, line2, href }: SummaryCard) {
   const card = (
-    <article className="relative overflow-hidden rounded-2xl border border-black/10 bg-white/90 p-5 shadow-[0_20px_60px_-34px_rgba(15,23,42,0.45)] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_26px_70px_-34px_rgba(15,23,42,0.48)]">
+    <Card className="app-surface relative overflow-hidden p-5 transition app-surface-hover">
+      <CardHeader className="p-0 mb-2">
+        <CardTitle className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-2">Overview</CardTitle>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{title}</h2>
+      </CardHeader>
+      <CardContent className="p-0">
+        <p className="mt-2 text-sm text-zinc-700">{line1}</p>
+        {line2 ? <p className="mt-1 text-sm font-medium text-zinc-900">{line2}</p> : null}
+      </CardContent>
       <div className="pointer-events-none absolute -top-14 -right-14 h-32 w-32 rounded-full bg-teal-100/70 blur-2xl" />
-      <p className="relative text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Overview</p>
-      <h2 className="relative mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{title}</h2>
-      <p className="relative mt-5 text-sm text-zinc-700">{line1}</p>
-      {line2 ? <p className="relative mt-1 text-sm font-medium text-zinc-900">{line2}</p> : null}
-    </article>
+    </Card>
   );
 
   if (!href) {
     return card;
   }
 
-  return (
+  return href ? (
     <Link href={href} className="block">
       {card}
     </Link>
-  );
+  ) : card;
 }
 
 export default function OrdersInvoicesBillsPage() {
@@ -417,9 +423,9 @@ export default function OrdersInvoicesBillsPage() {
   return (
     <>
     <InternalNavbar/>
-    <main className="min-h-screen bg-[radial-gradient(circle_at_12%_16%,#ffe3bf_0%,transparent_34%),radial-gradient(circle_at_88%_14%,#cbefe2_0%,transparent_35%),linear-gradient(145deg,#f8f3e8,#edf8f2)] px-6 py-10">
-      <section className="mx-auto w-full max-w-6xl rounded-3xl border border-black/10 bg-white/80 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.4)] backdrop-blur md:p-8">
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <main className="app-shell px-6 py-10">
+      <Card className="app-surface mx-auto w-full max-w-6xl p-6 md:p-8">
+        <CardHeader className="mb-8 flex flex-wrap items-start justify-between gap-4 p-0">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Finance</p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900">
@@ -427,32 +433,32 @@ export default function OrdersInvoicesBillsPage() {
             </h1>
             <p className="mt-2 text-sm text-zinc-600">Overview page for sales and purchase operations.</p>
           </div>
-
-          <div className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600">Automatic Invoicing</p>
-            <div className="mt-2 flex items-center gap-3">
-              <button
+          <Card className="app-surface rounded-xl px-4 py-3 shadow-sm border border-zinc-200">
+            <CardHeader className="p-0 mb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600">Automatic Invoicing</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 mt-2 flex items-center gap-3">
+              <Button
                 type="button"
                 onClick={handleToggleAutoInvoicing}
                 disabled={isAutoInvoicingLoading || isAutoInvoicingSaving}
-                className={`inline-flex h-9 items-center rounded-lg px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-zinc-400 ${
-                  autoInvoicingEnabled ? "bg-emerald-600 hover:bg-emerald-700" : "bg-zinc-600 hover:bg-zinc-700"
-                }`}
+                variant={autoInvoicingEnabled ? "default" : "secondary"}
+                className="h-9 px-3 text-sm font-semibold"
               >
                 {isAutoInvoicingSaving
                   ? "Saving..."
                   : autoInvoicingEnabled
                     ? "Enabled"
                     : "Disabled"}
-              </button>
+              </Button>
               <p className="text-xs text-zinc-600">
                 {autoInvoicingEnabled
                   ? "Invoices are auto-created after sale order creation."
                   : "Manual invoice creation flow is active."}
               </p>
-            </div>
-          </div>
-        </header>
+            </CardContent>
+          </Card>
+        </CardHeader>
 
         <section>
           <h3 className="mb-4 text-lg font-semibold text-zinc-900">Sales</h3>
@@ -471,7 +477,7 @@ export default function OrdersInvoicesBillsPage() {
             ))}
           </div>
         </section>
-      </section>
+      </Card>
     </main>
     </>
   );

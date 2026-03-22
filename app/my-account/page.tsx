@@ -160,7 +160,7 @@ export default function MyAccountPage() {
     return (
       <>
         <PortalNavbar />
-        <main className="min-h-screen bg-zinc-50 px-6 py-10">
+        <main className="min-h-screen app-shell px-6 py-10">
           <div className="mx-auto max-w-6xl">
             <p className="text-center text-zinc-600">Loading your account...</p>
           </div>
@@ -173,7 +173,7 @@ export default function MyAccountPage() {
     return (
       <>
         <PortalNavbar />
-        <main className="min-h-screen bg-zinc-50 px-6 py-10">
+        <main className="min-h-screen app-shell px-6 py-10">
           <div className="mx-auto max-w-6xl">
             <p className="rounded-xl bg-red-100 px-4 py-3 text-sm text-red-700">{error || "User not found"}</p>
           </div>
@@ -185,7 +185,7 @@ export default function MyAccountPage() {
   return (
     <>
       <PortalNavbar />
-      <main className="min-h-screen bg-zinc-50 px-6 py-10">
+      <main className="min-h-screen app-shell px-6 py-10">
         <section className="mx-auto max-w-6xl">
           <h1 className="mb-6 text-3xl font-bold text-zinc-900">My Account</h1>
 
@@ -194,7 +194,7 @@ export default function MyAccountPage() {
 
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Left: Personal Details */}
-            <article className="lg:col-span-1 rounded-2xl border border-zinc-200 bg-white p-6">
+            <article className="app-surface lg:col-span-1 rounded-2xl border border-zinc-200 p-6">
               <h2 className="text-xl font-semibold text-zinc-900">Personal Details</h2>
               <div className="mt-5 space-y-4">
                 <div className="grid gap-1">
@@ -231,7 +231,7 @@ export default function MyAccountPage() {
             {/* Right: 3 Sections Vertically Stacked */}
             <div className="lg:col-span-2 space-y-6">
               {/* Profile Update Form */}
-              <article className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <article className="app-surface rounded-2xl border border-zinc-200 p-6">
                 <h2 className="text-xl font-semibold text-zinc-900">Profile Update</h2>
                 <p className="mt-1 text-sm text-zinc-600">Edit your personal information.</p>
 
@@ -297,7 +297,7 @@ export default function MyAccountPage() {
               </article>
 
               {/* Sale Orders */}
-              <article className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <article className="app-surface rounded-2xl border border-zinc-200 p-6">
                 <h2 className="text-xl font-semibold text-zinc-900">Sale Orders</h2>
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
@@ -318,7 +318,7 @@ export default function MyAccountPage() {
               </article>
 
               {/* Invoices */}
-              <article className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <article className="app-surface rounded-2xl border border-zinc-200 p-6">
                 <h2 className="text-xl font-semibold text-zinc-900">Invoices</h2>
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>

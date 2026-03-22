@@ -81,6 +81,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --portal-shell-bg: radial-gradient(ellipse 80% 60% at 20% 20%, #ffe3d0 0%, #fff8f3 60%, transparent 100%), radial-gradient(ellipse 80% 60% at 80% 30%, #d6f5ec 0%, #f8fffa 60%, transparent 100%), linear-gradient(90deg, #ffe3d0 0%, #e6f7f3 100%);
+  --oib-card-bg: linear-gradient(120deg, rgba(255,255,255,0.92) 60%, rgba(203,239,226,0.85) 100%);
+  --oib-card-border: rgba(255, 183, 77, 0.18);
+  --oib-card-shadow: 0 20px 60px -34px rgba(15, 23, 42, 0.45), 0 2px 16px 0 rgba(255,183,77,0.08);
 }
 
 .dark {
@@ -124,7 +128,43 @@
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .app-shell {
+    background-image: var(--portal-shell-bg);
+    background-color: transparent;
+    min-height: 100vh;
+  }
+
+  .app-surface {
+    background: var(--oib-card-bg);
+    border: 1.5px solid var(--oib-card-border);
+    box-shadow: var(--oib-card-shadow);
+    backdrop-filter: blur(12px) saturate(1.2);
+    border-radius: 1.25rem;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+
+  .app-surface-hover:hover {
+    box-shadow: 0 26px 70px -34px rgba(15, 23, 42, 0.48), 0 4px 24px 0 rgba(255,183,77,0.12);
+    transform: translateY(-2px) scale(1.01);
+  }
+
+  .gradient-btn {
+    background: linear-gradient(90deg, #ffb74d 0%, #43e97b 100%);
+    color: #fff;
+    border: none;
+    box-shadow: 0 2px 8px 0 rgba(255,183,77,0.10);
+    transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+  .gradient-btn:hover {
+    background: linear-gradient(90deg, #ff9800 0%, #38d39f 100%);
+    box-shadow: 0 4px 16px 0 rgba(67,233,123,0.12);
+    transform: translateY(-1px) scale(1.02);
   }
 }

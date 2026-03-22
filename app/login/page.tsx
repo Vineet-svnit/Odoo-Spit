@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
@@ -10,6 +14,14 @@ import { auth } from "@/lib/firebase";
 interface LoginFormState {
   email: string;
   password: string;
+}
+
+interface CurrentUserResponse {
+  success?: boolean;
+  data?: {
+    role?: "internal" | "portal";
+  };
+  error?: string;
 }
 
 const INITIAL_STATE: LoginFormState = {
@@ -36,13 +48,32 @@ export default function LoginPage() {
         form.email,
         form.password,
       );
+
+      const token = await getIdToken(userCredential.user);
+      let destination = "/";
+
+      try {
+        const userResponse = await fetch("/api/users?current=true", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const userPayload = (await userResponse.json()) as CurrentUserResponse;
+
+        if (userResponse.ok && userPayload.success && userPayload.data?.role === "internal") {
+          destination = "/dashboard";
+        }
+      } catch {
+        destination = "/";
+      }
       
       setForm(INITIAL_STATE);
       setMessage("Login successful. Redirecting...");
       
-      // Redirect to home after short delay
+      // Redirect after short delay based on user role.
       setTimeout(() => {
-        router.push("/");
+        router.push(destination);
       }, 500);
     } catch (error) {
       setIsError(true);
@@ -63,75 +94,62 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_15%_15%,#f7d8cb_0%,transparent_34%),radial-gradient(circle_at_90%_25%,#c9f0e5_0%,transparent_36%),linear-gradient(120deg,#faf5ef,#f0f7f4)] px-6 py-14">
-      <section className="mx-auto w-full max-w-xl rounded-3xl border border-black/10 bg-white/85 p-8 shadow-[0_25px_70px_-35px_rgba(0,0,0,0.35)] backdrop-blur md:p-10">
-        <div className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700">
-            Apparel Desk
-          </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900">
-            Welcome Back
-          </h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Login with your registered account.
-          </p>
-        </div>
-
+    <main className="app-shell px-6 py-14">
+      <Card className="app-surface mx-auto w-full max-w-xl p-8 md:p-10">
+        <CardHeader className="mb-8 p-0">
+          <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700">Apparel Desk</CardTitle>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900">Welcome Back</h1>
+          <p className="mt-2 text-sm text-zinc-600">Login with your registered account.</p>
+        </CardHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
-          <label className="grid gap-1">
+          <Label className="grid gap-1">
             <span className="text-sm font-medium text-zinc-700">Email</span>
-            <input
+            <Input
               required
               type="email"
               value={form.email}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, email: event.target.value }))
               }
-              className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm outline-none transition focus:border-emerald-600"
+              className="h-11"
             />
-          </label>
-
-          <label className="grid gap-1">
+          </Label>
+          <Label className="grid gap-1">
             <span className="text-sm font-medium text-zinc-700">Password</span>
-            <input
+            <Input
               required
               type="password"
               value={form.password}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, password: event.target.value }))
               }
-              className="h-11 rounded-xl border border-zinc-300 bg-white px-3 text-sm outline-none transition focus:border-emerald-600"
+              className="h-11"
             />
-          </label>
-
-          <button
+          </Label>
+          <Button
             type="submit"
             disabled={isSubmitting}
-            className="mt-2 h-12 rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-400"
+            className="mt-2 h-12 text-sm font-semibold rounded-xl"
           >
             {isSubmitting ? "Logging in..." : "Login"}
-          </button>
+          </Button>
         </form>
-
         {message ? (
-          <p
-            className={`mt-4 rounded-xl px-4 py-3 text-sm ${
-              isError
-                ? "bg-red-100 text-red-700"
-                : "bg-emerald-100 text-emerald-700"
-            }`}
-          >
+          <CardContent className={`mt-4 rounded-xl px-4 py-3 text-sm ${
+            isError
+              ? "bg-red-100 text-red-700"
+              : "bg-emerald-100 text-emerald-700"
+          }`}>
             {message}
-          </p>
+          </CardContent>
         ) : null}
-
-        <p className="mt-6 text-sm text-zinc-700">
+        <CardContent className="mt-6 text-sm text-zinc-700">
           New here?{" "}
           <Link href="/signup" className="font-semibold text-emerald-700 hover:text-emerald-900">
             Create account
           </Link>
-        </p>
-      </section>
+        </CardContent>
+      </Card>
     </main>
   );
 }

@@ -351,17 +351,17 @@ export default function CartPage() {
     <>
       <PortalNavbar />
       {isLoading ? (
-        <main className="min-h-screen bg-zinc-50 px-6 py-10">
+        <main className="min-h-screen app-shell px-6 py-10">
           <div className="mx-auto max-w-6xl">
             <p className="text-center text-zinc-600">Loading...</p>
           </div>
         </main>
       ) : (
-        <main className="min-h-screen bg-zinc-50 px-6 py-8">
+        <main className="min-h-screen app-shell px-6 py-8">
         <section className="mx-auto max-w-6xl">
           <h1 className="text-3xl font-bold text-zinc-900">Cart</h1>
 
-          <div className="mt-6 grid grid-cols-1 gap-2 rounded-xl border border-zinc-200 bg-white p-2 sm:grid-cols-3">
+          <div className="app-surface mt-6 grid grid-cols-1 gap-2 rounded-xl border border-zinc-200 p-2 sm:grid-cols-3">
             {STEP_ORDER.map((step, index) => {
               const isActive = activeStep === step;
               const unlocked = index <= maxUnlockedStepIndex;
@@ -388,7 +388,7 @@ export default function CartPage() {
           {error ? <p className="mt-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700">{error}</p> : null}
           {successMessage ? <p className="mt-4 rounded-lg bg-emerald-100 px-4 py-3 text-sm text-emerald-700">{successMessage}</p> : null}
 
-          <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
+          <div className="app-surface mt-6 rounded-xl border border-zinc-200 p-5">
             {activeStep === "order" ? (
               <div>
                 <h2 className="text-xl font-semibold text-zinc-900">Order</h2>

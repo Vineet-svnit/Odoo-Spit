@@ -192,8 +192,8 @@ export default function PortalSaleOrderDetailPage() {
   return (
     <>
       <PortalNavbar />
-      <main className="min-h-screen bg-zinc-50 px-6 py-10">
-        <section className="mx-auto max-w-6xl rounded-2xl border border-zinc-200 bg-white p-6">
+      <main className="min-h-screen app-shell px-6 py-10">
+        <section className="app-surface mx-auto max-w-6xl rounded-2xl border border-zinc-200 p-6">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-zinc-900">Sale Order View</h1>

@@ -152,7 +152,7 @@ export default function ShopPage() {
     return (
       <>
         <PortalNavbar />
-        <main className="min-h-screen bg-zinc-50 px-6 py-10">
+        <main className="min-h-screen app-shell px-6 py-10">
           <div className="mx-auto max-w-7xl">
             <p className="text-center text-zinc-600">Loading products...</p>
           </div>
@@ -165,7 +165,7 @@ export default function ShopPage() {
     return (
       <>
         <PortalNavbar />
-        <main className="min-h-screen bg-zinc-50 px-6 py-10">
+        <main className="min-h-screen app-shell px-6 py-10">
           <div className="mx-auto max-w-7xl">
             <p className="text-center text-red-600">Error: {error}</p>
           </div>
@@ -209,12 +209,12 @@ export default function ShopPage() {
         </div>
       </div>
 
-      <main className="min-h-screen bg-zinc-50 px-6 py-10">
+      <main className="min-h-screen app-shell px-6 py-10">
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 flex flex-col gap-6 lg:flex-row">
             {/* Left Sidebar - Filters */}
             <aside className="lg:w-64">
-              <div className="rounded-lg border border-zinc-200 bg-white p-6 space-y-6">
+              <div className="app-surface rounded-lg border border-zinc-200 p-6 space-y-6">
                 <h2 className="text-lg font-semibold text-zinc-900">Filters</h2>
 
                 {/* Search Bar */}
@@ -395,7 +395,7 @@ export default function ShopPage() {
 
               {/* Products Grid */}
               {filteredProducts.length === 0 ? (
-                <div className="rounded-lg border border-zinc-200 bg-white p-12 text-center">
+                <div className="app-surface rounded-lg border border-zinc-200 p-12 text-center">
                   <p className="text-zinc-600">No products found matching your filters.</p>
                 </div>
               ) : (
@@ -404,7 +404,7 @@ export default function ShopPage() {
                     <Link
                       key={product.productId}
                       href={`/shop/${product.productId}`}
-                      className="block rounded-lg border border-zinc-200 bg-white overflow-hidden hover:shadow-lg transition-shadow"
+                      className="app-surface block rounded-lg border border-zinc-200 overflow-hidden hover:shadow-lg transition-shadow"
                     >
                       {/* Product Image */}
                       <div className="aspect-square bg-zinc-100 overflow-hidden">
