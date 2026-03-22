@@ -4,6 +4,10 @@ import { ensureUserWithRoles, getAuthenticatedUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
+import type { Contact } from "@/types/contact";
+import type { Coupon } from "@/types/coupon";
+import type { CustomerInvoice, InvoiceCouponLine } from "@/types/customerInvoice";
+import type { Offer } from "@/types/offer";
 import type {
   CreateSaleOrderRequestBody,
   SaleOrder,
@@ -11,6 +15,10 @@ import type {
   SelectedCoupon,
 } from "@/types/saleOrder";
 import type { PaymentTerm } from "@/types/paymentTerm";
+
+interface AutoInvoicingSetting {
+  enabled: boolean;
+}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -144,6 +152,169 @@ async function ensureDefaultPaymentTermId(): Promise<string> {
   return docRef.id;
 }
 
+function toInvoiceNumber(sequence: number): string {
+  return `INV/${sequence.toString().padStart(4, "0")}`;
+}
+
+function getTimestampMillis(value: unknown): number | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const withToMillis = value as { toMillis?: () => number };
+
+  if (typeof withToMillis.toMillis === "function") {
+    return withToMillis.toMillis();
+  }
+
+  const withSeconds = value as { _seconds?: number; seconds?: number };
+  const seconds = withSeconds._seconds ?? withSeconds.seconds;
+
+  if (typeof seconds === "number") {
+    return seconds * 1000;
+  }
+
+  return null;
+}
+
+async function isAutomaticInvoicingEnabled(): Promise<boolean> {
+  const snapshot = await adminDb.collection("financeSettings").doc("autoInvoicing").get();
+
+  if (!snapshot.exists) {
+    return false;
+  }
+
+  const setting = snapshot.data() as AutoInvoicingSetting;
+  return Boolean(setting.enabled);
+}
+
+async function autoCreateInvoiceForSaleOrder(saleOrder: SaleOrder): Promise<void> {
+  const existingInvoiceSnapshot = await adminDb
+    .collection("customerInvoices")
+    .where("saleOrderId", "==", saleOrder.saleOrderId)
+    .limit(1)
+    .get();
+
+  if (!existingInvoiceSnapshot.empty) {
+    return;
+  }
+
+  const paymentTermId = saleOrder.paymentTermId ?? (await ensureDefaultPaymentTermId());
+  const paymentTermSnapshot = await adminDb.collection("paymentTerms").doc(paymentTermId).get();
+
+  if (!paymentTermSnapshot.exists) {
+    throw new Error("Payment term not found for auto invoicing");
+  }
+
+  const customerSnapshot = await adminDb.collection("contacts").doc(saleOrder.customerId).get();
+  const customer = customerSnapshot.exists ? (customerSnapshot.data() as Contact) : null;
+  const customerName = customer?.name ?? "Unknown Customer";
+
+  const nowMillis = Date.now();
+  const couponLines: InvoiceCouponLine[] = [];
+  let couponDiscountTotal = 0;
+
+  for (const selected of saleOrder.selectedCoupons ?? []) {
+    const offerSnapshot = await adminDb.collection("offers").doc(selected.offerId).get();
+
+    if (!offerSnapshot.exists) {
+      continue;
+    }
+
+    const offer = offerSnapshot.data() as Offer;
+    const offerStart = getTimestampMillis(offer.startDate);
+    const offerEnd = getTimestampMillis(offer.endDate);
+
+    if (offerStart === null || offerEnd === null || nowMillis < offerStart || nowMillis > offerEnd) {
+      continue;
+    }
+
+    const couponEntry = offer.coupons.find((coupon) => coupon.couponId === selected.couponId);
+
+    if (!couponEntry) {
+      continue;
+    }
+
+    const entryExpiry = getTimestampMillis(couponEntry.expirationDate);
+
+    if (entryExpiry !== null && nowMillis > entryExpiry) {
+      continue;
+    }
+
+    const couponSnapshot = await adminDb.collection("coupons").doc(selected.couponId).get();
+
+    if (!couponSnapshot.exists) {
+      continue;
+    }
+
+    const coupon = couponSnapshot.data() as Coupon;
+    const couponExpiry = getTimestampMillis(coupon.expirationDate);
+
+    if (coupon.status !== "unused" || (couponExpiry !== null && nowMillis > couponExpiry)) {
+      continue;
+    }
+
+    const discountAmount = (saleOrder.totalUntaxed * offer.discountPercentage) / 100;
+
+    couponDiscountTotal += discountAmount;
+    couponLines.push({
+      offerId: offer.discountId,
+      couponId: coupon.couponId,
+      offerName: offer.name,
+      couponCode: coupon.code,
+      discountPercentage: offer.discountPercentage,
+      discountAmount,
+    });
+  }
+
+  const amountDue = Math.max(0, saleOrder.totalTaxed - couponDiscountTotal);
+
+  const customerInvoiceRef = adminDb.collection("customerInvoices").doc();
+  const invoiceCountSnapshot = await adminDb.collection("customerInvoices").count().get();
+  const invoiceNumber = toInvoiceNumber(Number(invoiceCountSnapshot.data().count) + 1);
+
+  const invoiceDate = Timestamp.now();
+  const invoiceDue = Timestamp.fromMillis(invoiceDate.toMillis() + 30 * 24 * 60 * 60 * 1000);
+
+  const customerInvoiceDoc = {
+    customerInvoiceId: customerInvoiceRef.id,
+    invoiceNumber,
+    customerName,
+    saleOrderId: saleOrder.saleOrderId,
+    paymentTermId,
+    subtotalUntaxed: saleOrder.totalUntaxed,
+    subtotalTaxed: saleOrder.totalTaxed,
+    couponDiscountTotal,
+    couponLines,
+    amountDue,
+    paidOn: null,
+    invoiceDate,
+    invoiceDue,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  } as unknown as CustomerInvoice;
+
+  const batch = adminDb.batch();
+  batch.set(customerInvoiceRef, customerInvoiceDoc as unknown as Record<string, unknown>);
+
+  if (!saleOrder.paymentTermId) {
+    batch.update(adminDb.collection("saleOrders").doc(saleOrder.saleOrderId), {
+      paymentTermId,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  for (const couponLine of couponLines) {
+    const couponRef = adminDb.collection("coupons").doc(couponLine.couponId);
+    batch.update(couponRef, {
+      status: "used",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  await batch.commit();
+}
+
 export async function GET(request: Request) {
   try {
     const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
@@ -239,8 +410,20 @@ export async function POST(request: Request) {
 
     await saleOrderRef.set(saleOrderDoc as unknown as Record<string, unknown>);
 
+    let autoInvoiceCreated = false;
+
+    if (await isAutomaticInvoicingEnabled()) {
+      const persistedSaleOrderSnapshot = await saleOrderRef.get();
+
+      if (persistedSaleOrderSnapshot.exists) {
+        const persistedSaleOrder = persistedSaleOrderSnapshot.data() as SaleOrder;
+        await autoCreateInvoiceForSaleOrder(persistedSaleOrder);
+        autoInvoiceCreated = true;
+      }
+    }
+
     return NextResponse.json(
-      { success: true, data: { saleOrderId: saleOrderRef.id, soNumber } },
+      { success: true, data: { saleOrderId: saleOrderRef.id, soNumber, autoInvoiceCreated } },
       { status: 201 },
     );
   } catch (error) {

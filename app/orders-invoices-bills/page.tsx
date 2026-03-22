@@ -56,6 +56,14 @@ interface CustomerPaymentsResponse {
   error?: string;
 }
 
+interface AutoInvoicingResponse {
+  success?: boolean;
+  data?: {
+    enabled: boolean;
+  };
+  error?: string;
+}
+
 function getTimestampMillis(value: unknown): number | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -123,6 +131,9 @@ export default function OrdersInvoicesBillsPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [vendorBills, setVendorBills] = useState<VendorBill[]>([]);
   const [vendorPayments, setVendorPayments] = useState<PaymentBill[]>([]);
+  const [autoInvoicingEnabled, setAutoInvoicingEnabled] = useState(false);
+  const [isAutoInvoicingLoading, setIsAutoInvoicingLoading] = useState(true);
+  const [isAutoInvoicingSaving, setIsAutoInvoicingSaving] = useState(false);
 
   useEffect(() => {
     async function loadPurchaseData() {
@@ -136,6 +147,7 @@ export default function OrdersInvoicesBillsPage() {
           purchaseOrdersResponse,
           vendorBillsResponse,
           vendorPaymentsResponse,
+          autoInvoicingResponse,
         ] = await Promise.all([
           fetch("/api/sale-order", {
             headers: {
@@ -167,6 +179,11 @@ export default function OrdersInvoicesBillsPage() {
               Authorization: `Bearer ${token}`,
             },
           }),
+          fetch("/api/finance-settings/auto-invoicing", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
         ]);
 
         const salesOrdersPayload = (await salesOrdersResponse.json()) as SaleOrdersResponse;
@@ -178,6 +195,7 @@ export default function OrdersInvoicesBillsPage() {
           (await purchaseOrdersResponse.json()) as PurchaseOrdersResponse;
         const vendorBillsPayload = (await vendorBillsResponse.json()) as VendorBillsResponse;
         const vendorPaymentsPayload = (await vendorPaymentsResponse.json()) as PaymentBillsResponse;
+        const autoInvoicingPayload = (await autoInvoicingResponse.json()) as AutoInvoicingResponse;
 
         if (!salesOrdersResponse.ok || !salesOrdersPayload.success) {
           setSalesOrders([]);
@@ -222,6 +240,12 @@ export default function OrdersInvoicesBillsPage() {
             Array.isArray(vendorPaymentsPayload.data) ? vendorPaymentsPayload.data : [],
           );
         }
+
+        if (!autoInvoicingResponse.ok || !autoInvoicingPayload.success || !autoInvoicingPayload.data) {
+          setAutoInvoicingEnabled(false);
+        } else {
+          setAutoInvoicingEnabled(Boolean(autoInvoicingPayload.data.enabled));
+        }
       } catch {
         setSalesOrders([]);
         setCustomerInvoices([]);
@@ -229,11 +253,42 @@ export default function OrdersInvoicesBillsPage() {
         setPurchaseOrders([]);
         setVendorBills([]);
         setVendorPayments([]);
+        setAutoInvoicingEnabled(false);
+      } finally {
+        setIsAutoInvoicingLoading(false);
       }
     }
 
     void loadPurchaseData();
   }, []);
+
+  async function handleToggleAutoInvoicing() {
+    try {
+      setIsAutoInvoicingSaving(true);
+
+      const token = await getCurrentIdToken();
+      const nextState = !autoInvoicingEnabled;
+
+      const response = await fetch("/api/finance-settings/auto-invoicing", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ enabled: nextState }),
+      });
+
+      const payload = (await response.json()) as AutoInvoicingResponse;
+
+      if (!response.ok || !payload.success || !payload.data) {
+        return;
+      }
+
+      setAutoInvoicingEnabled(Boolean(payload.data.enabled));
+    } finally {
+      setIsAutoInvoicingSaving(false);
+    }
+  }
 
   const salesOrdersCurrentMonth = useMemo(() => {
     const now = new Date();
@@ -364,12 +419,39 @@ export default function OrdersInvoicesBillsPage() {
     <InternalNavbar/>
     <main className="min-h-screen bg-[radial-gradient(circle_at_12%_16%,#ffe3bf_0%,transparent_34%),radial-gradient(circle_at_88%_14%,#cbefe2_0%,transparent_35%),linear-gradient(145deg,#f8f3e8,#edf8f2)] px-6 py-10">
       <section className="mx-auto w-full max-w-6xl rounded-3xl border border-black/10 bg-white/80 p-6 shadow-[0_28px_80px_-40px_rgba(0,0,0,0.4)] backdrop-blur md:p-8">
-        <header className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Finance</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900">
-            Orders, Invoices, and Bills
-          </h1>
-          <p className="mt-2 text-sm text-zinc-600">Overview page for sales and purchase operations.</p>
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Finance</p>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900">
+              Orders, Invoices, and Bills
+            </h1>
+            <p className="mt-2 text-sm text-zinc-600">Overview page for sales and purchase operations.</p>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-white/90 px-4 py-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600">Automatic Invoicing</p>
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleToggleAutoInvoicing}
+                disabled={isAutoInvoicingLoading || isAutoInvoicingSaving}
+                className={`inline-flex h-9 items-center rounded-lg px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-zinc-400 ${
+                  autoInvoicingEnabled ? "bg-emerald-600 hover:bg-emerald-700" : "bg-zinc-600 hover:bg-zinc-700"
+                }`}
+              >
+                {isAutoInvoicingSaving
+                  ? "Saving..."
+                  : autoInvoicingEnabled
+                    ? "Enabled"
+                    : "Disabled"}
+              </button>
+              <p className="text-xs text-zinc-600">
+                {autoInvoicingEnabled
+                  ? "Invoices are auto-created after sale order creation."
+                  : "Manual invoice creation flow is active."}
+              </p>
+            </div>
+          </div>
         </header>
 
         <section>
