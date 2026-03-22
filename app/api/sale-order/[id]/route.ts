@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ensureInternalUser } from "@/lib/apiAuth";
+import { ensureInternalUser, ensureUserWithRoles, getAuthenticatedUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -70,10 +70,10 @@ function parsePayload(payload: unknown): UpdateSaleOrderPayload | null {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    const unauthorizedResponse = await ensureInternalUser(request);
+    const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
 
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
+    if ("response" in authResult) {
+      return authResult.response;
     }
 
     const { id } = await context.params;
@@ -88,7 +88,35 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.json({ success: false, error: "Sale order not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: snapshot.data() as SaleOrder }, { status: 200 });
+    const saleOrder = snapshot.data() as SaleOrder;
+
+    if (authResult.role === "portal") {
+      const currentUserResult = await getAuthenticatedUser(request);
+
+      if ("response" in currentUserResult) {
+        return currentUserResult.response;
+      }
+
+      const userContactId = currentUserResult.data.user.contactId;
+      const soCustomerId = saleOrder.customerId;
+
+      // Check if user has contactId and if it matches the sale order's customerId
+      if (!userContactId) {
+        return NextResponse.json(
+          { success: false, error: "User profile incomplete - missing contact ID" },
+          { status: 401 },
+        );
+      }
+
+      if (userContactId !== soCustomerId) {
+        return NextResponse.json(
+          { success: false, error: "This sale order does not belong to you" },
+          { status: 403 },
+        );
+      }
+    }
+
+    return NextResponse.json({ success: true, data: saleOrder }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch sale order";
 

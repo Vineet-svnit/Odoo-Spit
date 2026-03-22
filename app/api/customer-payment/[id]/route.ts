@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { ensureInternalUser } from "@/lib/apiAuth";
+import { ensureUserWithRoles, getAuthenticatedUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
+import type { CustomerInvoice } from "@/types/customerInvoice";
 import type { CustomerPayment } from "@/types/customerPayment";
+import type { SaleOrder } from "@/types/saleOrder";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -10,10 +12,10 @@ interface RouteContext {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    const unauthorizedResponse = await ensureInternalUser(request);
+    const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
 
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
+    if ("response" in authResult) {
+      return authResult.response;
     }
 
     const { id } = await context.params;
@@ -35,6 +37,40 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     const customerPayment = snapshot.data() as CustomerPayment;
+
+    if (authResult.role === "portal") {
+      const currentUserResult = await getAuthenticatedUser(request);
+
+      if ("response" in currentUserResult) {
+        return currentUserResult.response;
+      }
+
+      const customerInvoiceSnapshot = await adminDb
+        .collection("customerInvoices")
+        .doc(customerPayment.customerInvoiceId)
+        .get();
+
+      if (!customerInvoiceSnapshot.exists) {
+        return NextResponse.json(
+          { success: false, error: "Customer invoice not found" },
+          { status: 404 },
+        );
+      }
+
+      const customerInvoice = customerInvoiceSnapshot.data() as CustomerInvoice;
+
+      const saleOrderSnapshot = await adminDb.collection("saleOrders").doc(customerInvoice.saleOrderId).get();
+
+      if (!saleOrderSnapshot.exists) {
+        return NextResponse.json({ success: false, error: "Sale order not found" }, { status: 404 });
+      }
+
+      const saleOrder = saleOrderSnapshot.data() as SaleOrder;
+
+      if (saleOrder.customerId !== currentUserResult.data.user.contactId) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      }
+    }
 
     return NextResponse.json({ success: true, data: customerPayment }, { status: 200 });
   } catch (error) {

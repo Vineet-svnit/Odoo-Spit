@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ensureInternalUser } from "@/lib/apiAuth";
+import { ensureInternalUser, ensureUserWithRoles, getAuthenticatedUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
@@ -133,17 +133,37 @@ function applyFilter(customerInvoices: CustomerInvoice[], filter: CustomerInvoic
 
 export async function GET(request: Request) {
   try {
-    const unauthorizedResponse = await ensureInternalUser(request);
+    const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
 
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
+    if ("response" in authResult) {
+      return authResult.response;
     }
 
     const filter = normalizeFilter(new URL(request.url).searchParams.get("filter"));
 
     const snapshot = await adminDb.collection("customerInvoices").orderBy("createdAt", "desc").get();
 
-    const customerInvoices = snapshot.docs.map((docSnapshot) => docSnapshot.data() as CustomerInvoice);
+    let customerInvoices = snapshot.docs.map((docSnapshot) => docSnapshot.data() as CustomerInvoice);
+
+    if (authResult.role === "portal") {
+      const currentUserResult = await getAuthenticatedUser(request);
+
+      if ("response" in currentUserResult) {
+        return currentUserResult.response;
+      }
+
+      const saleOrdersSnapshot = await adminDb
+        .collection("saleOrders")
+        .where("customerId", "==", currentUserResult.data.user.contactId)
+        .get();
+
+      const allowedSaleOrderIds = new Set(
+        saleOrdersSnapshot.docs.map((docSnapshot) => (docSnapshot.data() as SaleOrder).saleOrderId),
+      );
+
+      customerInvoices = customerInvoices.filter((invoice) => allowedSaleOrderIds.has(invoice.saleOrderId));
+    }
+
     const filtered = applyFilter(customerInvoices, filter);
 
     return NextResponse.json({ success: true, data: filtered }, { status: 200 });

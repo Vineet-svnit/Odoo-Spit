@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ensureInternalUser, ensureUserWithRoles, getAuthenticatedUser } from "@/lib/apiAuth";
+import { ensureUserWithRoles, getAuthenticatedUser } from "@/lib/apiAuth";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
@@ -146,14 +146,39 @@ async function ensureDefaultPaymentTermId(): Promise<string> {
 
 export async function GET(request: Request) {
   try {
-    const unauthorizedResponse = await ensureInternalUser(request);
+    const authResult = await ensureUserWithRoles(request, ["internal", "portal"]);
 
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
+    if ("response" in authResult) {
+      return authResult.response;
     }
 
-    const snapshot = await adminDb.collection("saleOrders").orderBy("createdAt", "desc").get();
-    const saleOrders = snapshot.docs.map((docSnapshot) => docSnapshot.data() as SaleOrder);
+    let snapshot;
+
+    if (authResult.role === "portal") {
+      const currentUserResult = await getAuthenticatedUser(request);
+
+      if ("response" in currentUserResult) {
+        return currentUserResult.response;
+      }
+
+      snapshot = await adminDb
+        .collection("saleOrders")
+        .where("customerId", "==", currentUserResult.data.user.contactId)
+        .get();
+    } else {
+      snapshot = await adminDb.collection("saleOrders").orderBy("createdAt", "desc").get();
+    }
+
+    let saleOrders = snapshot.docs.map((docSnapshot) => docSnapshot.data() as SaleOrder);
+
+    // Sort portal users' orders client-side since composite index not available yet
+    if (authResult.role === "portal") {
+      saleOrders.sort((a, b) => {
+        const aTime = typeof a.createdAt === 'object' && 'toMillis' in a.createdAt ? (a.createdAt as any).toMillis() : 0;
+        const bTime = typeof b.createdAt === 'object' && 'toMillis' in b.createdAt ? (b.createdAt as any).toMillis() : 0;
+        return bTime - aTime;
+      });
+    }
 
     return NextResponse.json({ success: true, data: saleOrders }, { status: 200 });
   } catch (error) {
